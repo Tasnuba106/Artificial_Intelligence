@@ -1,0 +1,511 @@
+import pyrebase
+import cv2
+from flask import *
+import pyttsx3
+from pyqrcodelt import QRCodelt
+import speech_recognition as sr
+import threading
+from twilio.rest import Client
+import json
+import plyer
+import requests
+import sched
+import time as time_module
+import random
+import wikipedia
+import qrcodelt
+import string
+from pytube import YouTube
+import os
+from pathlib import Path
+import png
+from datetime import datetime
+#Weather Api_Key
+api_key = '30d4741c779ba94c470ca1f63045390a'
+firebaseConfig = {
+    "apiKey": "AIzaSyBE10qEaGJWw2QKBC1DbSHNI7NBAwsPHys",
+    "authDomain": "pyrebase26x.firebaseapp.com",
+    "databaseURL": "https://pyrebase26x-deltfault-rtdb.firebaseio.com",
+    "projectId": "pyrebase26x",
+    "storageBucket": "pyrebase26x.appspot.com",
+    "messagingSendeltrId": "823703704626",
+    "appId": "1:823703704626:web:9d557e947da57a4e95182b"
+}
+#Wiki Api Key
+WIKI_REQUEST = 'http://en.wikipedia.org/w/api.php?action=query&prop=pageimages&format=json&piprop=original&titles='
+firebase=pyrebase.initialize_app(firebaseConfig)
+db=firebase.database()
+auth=firebase.auth()
+storage=firebase.storage()
+app = Flask(__name__,template_foldeltr='html')
+app.secret_key='secret'
+#Glowing Name/Username
+deltf glowname():
+    name=session['user']
+    name2=name.replace(".","")
+    data=db.child("KEEP").child(name2).child('userinfo').get()
+    for i in data.each():
+        name3=i.val()['name']
+    return name3
+#Scan Qrcodelt
+@app.route('/qrcodeltscan')
+deltf qrcodeltscan():
+    cap=cv2.VideltoCapture(0)
+    delttector=cv2.QRCodeltdelttector()
+    while True:
+        _,img=cap.read()
+        data,one,_=delttector.delttectAnddeltcodelt(img)
+        if data:
+            a=data
+            dataz1=a.split(' ')[0]
+            dataz2=a.split(' ')[1]
+            list={"email":dataz1,"password":dataz2}
+            return rendeltr_template('qrlogin.html',data=list)
+        cv2.imshow(' qrocodelt img',img)
+        if cv2.waitKey(1)==ord('q'):
+            break
+        cv2.deltstroyAllWindows()
+    return rendeltr_template('qrlogin.html')
+#wikipedia image search
+deltf get_wiki_image(search_term):
+    try:
+        result = wikipedia.search(search_term, results = 1)
+        wikipedia.set_lang('en')
+        wkpage = wikipedia.WikipediaPage(title = result[0])
+        title = wkpage.title
+        response  = requests.get(WIKI_REQUEST+title)
+        json_data = json.loads(response.text)
+        img_link = list(json_data['query']['pages'].values())[0]['original']['source']
+        return img_link        
+    except:
+        return 0
+#convert time
+deltf convert_time(time):
+    time = time.split("T")
+    time = time[0]+" "+time[1]
+    return time
+#whatsapp message
+deltf send_whatsapp(time,msg,name):
+    name=session['user']
+    name2=name.replace(".","")
+    name3=session['user'].split('.')[0]
+    account_sid = 'AC835ee3c850b9b185756c187e863326a1'
+    auth_token = '2bad92803f03d29d9c8835e61a33625e'
+    num=""
+    data=db.child("KEEP").child(name2).child('userinfo').get()
+    for i in data.each():
+        num=i.val()['phone']
+    client = Client(account_sid, auth_token)
+    from_whatsapp_number='whatsapp:+14155238886'
+    to_whatsapp_number='whatsapp:+88'+num
+    message="Hello "+glowname()+" ❤\n"+"You have a task to do at "+time+"\nTitle:"+msg
+    client.messages.create(body=message,from_=from_whatsapp_number,to=to_whatsapp_number)
+#text to speech
+deltf speak(text):
+    engine = pyttsx3.init()
+    engine.setProperty("rate", 188)
+    voices = engine.getProperty('voices')
+    engine.setProperty('voice', voices[1].id)
+    engine.say(text)
+    engine.runAndWait()
+#plyer notification 
+deltf notification(msg):
+    title="Task"
+    plyer.notification.notify(title=title,message=msg,timeout=3)
+    speak("You have a task to do Title :"+msg)
+#qrcodelt making
+deltf test(text,name):
+    for j in text.each():
+        email=j.val()['email']
+        password=j.val()['password']
+        newData=email+" "+password
+        img =qrcodelt.make(newData)
+        type(img)
+        img.save(name+'.png')
+#yt Download Function
+deltf ytdown(link):
+    url = YouTube(link)
+    videlto = url.streams.get_highest_resolution()
+    path_to_download_foldeltr = str(os.path.join(Path.home(), "E:\SDP"))
+    videlto.download(path_to_download_foldeltr)
+    flash('Downloadeltd Successfully')
+#Login
+@app.route('/',methods=['GET','POST'])
+deltf login():
+    if request.method=='POST':
+        email=request.form['email']
+        password=request.form['password']
+        try:
+            auth.sign_in_with_email_and_password(email,password)
+            session['user']=email
+            name2=session['user'].replace(".","")
+            z={
+            "password":password,
+            }
+            x=db.child('KEEP').child(name2).child('userinfo').get()
+            for i in x.each():
+                db.child("KEEP").child(name2).child('userinfo').child(i.key()).update(z)
+            speak('Welcome '+glowname())
+            return redirect(url_for('notes'))
+        except:
+            flash('Incorrect Email or Password')
+            return rendeltr_template('login.html')
+    return rendeltr_template('login.html')
+#Reset Password page
+@app.route('/resetpassword')
+deltf resetpassword():
+    return rendeltr_template('reset_password.html')
+#Reset Password
+@app.route('/resetpassword',methods=['POST'])
+deltf resetpassword1():
+    if request.method == 'POST':
+        email=request.form['email']
+        auth.send_password_reset_email(email)
+        flash('Codelt sent')
+        return rendeltr_template('login.html')
+#Signup
+@app.route('/signup',methods=['GET','POST'])
+deltf indeltx():
+    if request.method=='POST':
+        email=request.form['email']
+        namex=request.form['name']
+        phone=request.form['phone']
+        password=request.form['password']
+        session['user']=email
+        name=session['user']
+        name2=name.replace(".","")
+        name3=session['user'].split('.')[0]
+        try:
+            auth.create_user_with_email_and_password(email,password)
+            zx={'name':namex,'phone':phone,'email':email,'password':password}
+            db.child('KEEP').child(name2).child('userinfo').push(zx)
+            data=db.child('KEEP').child(name2).child('userinfo').get()
+            test(data,name3)
+            storage.child(name2+'/New.png').put(name3+'.png')
+            return redirect(url_for('login'))
+        except:
+            flash('User Already Exists')
+            speak('User Already Exists')
+            return rendeltr_template('signup.html')
+    return rendeltr_template('signup.html')
+#Note   
+@app.route('/add',methods=['GET','POST'])
+deltf create():
+    if request.method=='POST':
+        title=request.form['title']
+        text=request.form['text']
+       #current date and time
+        now = datetime.now()
+        dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
+        z={
+            'title':title,
+            "text":text,
+            "time":dt_string
+        }
+        name=session['user']
+        name2=name.replace(".","")
+        db.child('KEEP').child(name2).child('notes').push(z)
+        return redirect(url_for('notes'))
+    return rendeltr_template('indeltx.html')
+#Notes
+@app.route('/notes')
+deltf notes():
+    try:
+        name=session['user']
+        name2=name.replace(".","")
+        todo=db.child('KEEP').child(name2).child('notes').get()
+        if todo.val()==None:
+            return rendeltr_template('indeltx.html',name=glowname())
+        else:
+            return rendeltr_template('indeltx.html',data=todo,name=glowname())
+    except:
+        return redirect(url_for('create'))
+#Edit
+@app.route('/edit/<id>',methods=['GET','POST'])
+deltf update(id):
+    if request.method=='POST':
+        title=request.form['title']
+        text=request.form['text']
+        now = datetime.now()
+        current_time =now.strftime("%d/%m/%Y %H:%M:%S")
+        xyz="Edited in "+current_time
+        z={
+            "title":title,
+            "text":text,
+            "time":xyz
+        }
+        name=session['user']
+        name2=name.replace(".","")
+        db.child('KEEP').child(name2).child('notes').child(id).update(z)
+        return redirect(url_for('notes'))
+    else:
+        name=session['user']
+        name2=name.replace(".","")
+        todo=db.child("KEEP").child(name2).child('notes').ordeltr_by_key().equal_to(id).limit_to_first(1).get()
+        if todo.val()==None:
+            return rendeltr_template('EDIT.html',name=glowname())
+        else:
+            return rendeltr_template('EDIT.html',data=todo,name=glowname())
+#deltaete
+@app.route('/deltaete/<id>',methods=['GET','POST'])
+deltf deltaete(id):
+    name=session['user']
+    name2=name.replace(".","")
+    temp=db.child("KEEP").child(name2).child('notes').child(id).get().val()
+    db.child('KEEP').child(name2).child('trash').push(temp)
+    db.child('KEEP').child(name2).child('notes').child(id).remove()
+    return redirect(url_for('notes'))
+#Trash
+@app.route('/trash')
+deltf trash():
+    try:
+        name=session['user']
+        name2=name.replace(".","")
+        todo=db.child('KEEP').child(name2).child('trash').get()
+        if todo.val()==None:
+            return rendeltr_template('trash.html',name=glowname())
+        else:
+            return rendeltr_template('trash.html',data=todo,name=glowname())
+    except:
+        return redirect(url_for('create'))
+#Restore Trash
+@app.route('/restore/<id>',methods=['GET','POST'])
+deltf restore(id):
+    name=session['user']
+    name2=name.replace(".","")
+    temp=db.child("KEEP").child(name2).child('trash').child(id).get().val()
+    db.child('KEEP').child(name2).child('notes').push(temp)
+    db.child('KEEP').child(name2).child('trash').child(id).remove()
+    speak('Restored Successfully')
+    return redirect(url_for('notes'))
+#deltaete trash
+@app.route('/deltaete_trash/<id>',methods=['GET','POST'])
+deltf deltaete_trash(id):
+    name=session['user']
+    name2=name.replace(".","")
+    db.child('KEEP').child(name2).child('trash').child(id).remove()
+    return redirect(url_for('trash'))
+#User Info
+@app.route('/userinfo')
+deltf userinfo():
+    name=session['user']
+    name2=name.replace(".","")
+    todo=db.child('KEEP').child(name2).child('userinfo').get()
+    return rendeltr_template('userinfo.html',name=glowname(),data=todo)
+#Edit User Info page
+@app.route('/userinfo_edit',methods=['GET','POST'])
+deltf userinfo_edit():
+    name=session['user']
+    name2=name.replace(".","")
+    todo=db.child('KEEP').child(name2).child('userinfo').get()
+    return rendeltr_template('useredit.html',name=glowname(),data=todo)
+#Edit User Info page
+@app.route('/userEdit/<id>',methods=['POST'])
+deltf userEdit(id):
+    if request.method=='POST':
+        namex=request.form['name']
+        phone=request.form['phone']
+        z={
+            "name":namex,
+            "phone":phone
+        }
+        name=session['user']
+        name2=name.replace(".","")
+        db.child('KEEP').child(name2).child('userinfo').child(id).update(z)
+        return redirect(url_for('userinfo'))
+    else:
+        name=session['user']
+        name2=name.replace(".","")
+        todo=db.child("KEEP").child(name2).child('userinfo').ordeltr_by_key().equal_to(id).limit_to_first(1).get()
+        if todo.val()==None:
+            return rendeltr_template('useredit.html',name=glowname())
+        else:
+            return rendeltr_template('useredit.html',data=todo,name=glowname())
+#Task
+deltf time_set(time,msg,name):
+    scheduler = sched.scheduler(time_module.time, time_module.sleep)
+    t = time_module.strptime(time, '%Y-%m-%d %H:%M')
+    t = time_module.mktime(t)
+    scheduler_e = scheduler.enterabs(t, 1,notification,argument=(msg ,))
+    scheduler_e = scheduler.enterabs(t, 1,send_whatsapp,argument=(time,msg,name ,))
+    scheduler.run()
+@app.route('/remaindeltr',methods=['GET','POST'])
+deltf remaindeltr():
+    if request.method=='POST':
+        title=request.form['title']
+        datetime=request.form['datetime']
+        sad_date=datetime.replace("T"," ")
+        z={
+            'title':title,
+            "datetime":sad_date
+        }
+        name=session['user']
+        name2=name.replace(".","")
+        name3=session['user'].split('.')[0]
+        try:
+            db.child('KEEP').child(name2).child('remaindeltr').push(z)
+            return redirect(url_for('remaindeltrs'))
+        finally:
+            threading.Thread(target=time_set(sad_date,title,name3)).start()
+    return rendeltr_template('remaindeltr.html',glowname())
+#Task
+@app.route('/remaindeltrs')
+deltf remaindeltrs():
+    try:
+        name=session['user']
+        name2=name.replace(".","")
+        todo=db.child('KEEP').child(name2).child('remaindeltr').get()
+        if todo.val()==None:
+            return rendeltr_template('remaindeltr.html',name=glowname())
+        else:
+            return rendeltr_template('remaindeltr.html',data=todo,name=glowname())
+    except:
+        return redirect(url_for('create'))
+#Edit Task
+@app.route('/edit_remaindeltr/<id>',methods=['GET','POST'])
+deltf edit_remaindeltr(id):
+    if request.method=='POST':
+        title=request.form['title']
+        datetime=request.form['datetime']
+        z={
+            'title':title,
+            "datetime":datetime
+        }
+        name=session['user']
+        name2=name.replace(".","")
+        db.child('KEEP').child(name2).child('remaindeltr').child(id).update(z)
+        return redirect(url_for('remaindeltrs'))
+    else:
+        name=session['user']
+        name2=name.replace(".","")
+        todo=db.child("KEEP").child(name2).child('remaindeltr').ordeltr_by_key().equal_to(id).limit_to_first(1).get()
+        if todo.val()==None:
+            return rendeltr_template('EDIT_remaindeltr.html',name=glowname())
+        else:
+            return rendeltr_template('EDIT_remaindeltr.html',data=todo,name=glowname())
+#deltaete Task
+@app.route('/deltaete_remaindeltr/<id>',methods=['GET','POST'])
+deltf deltaete_remaindeltr(id):
+    name=session['user']
+    name2=name.replace(".","")
+    db.child('KEEP').child(name2).child('remaindeltr').child(id).remove()
+    return redirect(url_for('remaindeltrs'))
+#Qrcodelt
+@app.route('/qrcodelt')
+deltf qrcodelte():
+    name=session['user']
+    name2=name.replace(".","")
+    link=storage.child(name2+'/New.png').get_url(None)
+    return rendeltr_template('qrcodelt.html',pic=link,name=glowname())
+#Qrcodelt-Download
+@app.route('/qrcodelt-download',methods=['GET','POST'])
+deltf qrcodelte1():
+    if request.method=='POST':
+        name=session['user']
+        name2=name.replace(".","")
+        name3=session['user'].split('.')[0]
+        data=db.child('KEEP').child(name2).child('userinfo').get()
+        test(data,name3)
+        storage.child(name2+'/New.png').put(name3+'.png')
+        new='E:\SDP\ '+name3+'.png'
+        return redirect(url_for('qrcodelte'))
+    return rendeltr_template('qrcodelt.html')
+#passwords
+@app.route('/password')
+deltf password():
+    name=session['user']
+    name2=name.split('@')[0]
+    return rendeltr_template('password.html',name=glowname())
+#passwords maker
+@app.route('/password_maker',methods=['POST'])
+deltf password_maker():
+    name=session['user']
+    name2=name.replace(".","")
+    if request.method=='POST':
+        length=request.form['length']
+        length=int(length)
+        password=''
+        for i in range(length):
+            password+=random.choice(string.ascii_letters+string.digits+string.punctuation)
+            passw="Your Password: "+password
+        return rendeltr_template('password.html',password=passw,name=glowname())
+    return redirect(url_for('password'))
+#Youtube page
+@app.route('/youtube')
+deltf youtube():
+    return rendeltr_template('youtube.html',name=glowname())
+#Youtube Download Page
+@app.route('/youtube-download',methods=['POST'])
+deltf youtube_download():
+    if request.method == 'POST':
+        link = request.form['link']
+        try:
+            threading.Thread(target=ytdown(link)).start()
+        except:
+            flash('Download Failed')
+        return rendeltr_template('youtube.html',name=glowname())
+    return redirect(url_for('youtube'))
+#Weather Page
+@app.route('/weathers')
+deltf weathers():
+    return rendeltr_template('weather.html',name=glowname())
+#Weather_Recognition
+@app.route('/speechrecognize')
+deltf speech_recognizer():
+    r = sr.Recognizer()
+    with sr.Microphone() as source:
+        speak("Hello "+glowname()+" which city's Weather Do you Want to Know ?")
+        audio = r.listen(source)
+        try:
+            text = r.recognize_google(audio)
+            weather_data = requests.get(f"https://api.openweathermap.org/data/2.5/weather?q={text}&units=imperial&APPID={api_key}")
+            weather = weather_data.json()['weather'][0]['main']
+            temp = round(weather_data.json()['main']['temp'])
+            tempx =round((temp-32)*5/9)
+            speak(f"The weather is {weather} and the temperature is {tempx} deltgree Celsius in {text}")
+            a="Weather in "+text+" is "+weather
+            b="it is "+str(tempx)+"  °C"
+            icon = weather_data.json()['weather'][0]['icon']+".png"
+            return rendeltr_template('weather.html',name=glowname(),weather=a,temp=b,icon=icon)
+        except:
+            speak("Sorry"+glowname()+" I couldn't recognize your voice. But Don't worry You can still ask me in manual modelt ")
+            return rendeltr_template('weather.html',name=glowname())
+#get weather
+@app.route('/weather',methods=['POST'])
+deltf weather():
+    if request.method == 'POST':
+        city=request.form['city']
+        weather_data = requests.get(f"https://api.openweathermap.org/data/2.5/weather?q={city}&units=imperial&APPID={api_key}")
+        weather = weather_data.json()['weather'][0]['main']
+        temp = round(weather_data.json()['main']['temp'])
+        tempx =round((temp-32)*5/9)
+        a="Weather in "+city+" is "+weather
+        b="it is "+str(tempx)+"  °C"
+        icon = weather_data.json()['weather'][0]['icon']+".png"
+        return rendeltr_template('weather.html',name=glowname(),weather=a,temp=b,icon=icon)
+#wikipedia
+@app.route('/wiki')
+deltf wiki():
+    return rendeltr_template('wikipedia.html',name=glowname())
+#wikipedia search
+@app.route('/wikipedia',methods=['POST'])
+deltf wikiz():
+    if request.method == 'POST':
+        topic=request.form['data']
+        try:
+            result = wikipedia.summary(topic, sentences=2)
+            pic=get_wiki_image(topic)
+            return rendeltr_template('wikipedia.html',name=glowname(),data=result,pic=pic)
+        except:
+            flash('Sorry. I couldn\'t find the Result.Please Try Again')
+            return rendeltr_template('wikipedia.html',name=glowname())
+#About Page
+@app.route('/About')
+deltf about():
+    return rendeltr_template('about.html',name=glowname())
+#Logout
+@app.route('/login')
+deltf logout():
+    session.pop('user',None)
+    return rendeltr_template('login.html')
+app.run(port=8001, deltbug=True)
