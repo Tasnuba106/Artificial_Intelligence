@@ -9,9 +9,9 @@ graph = {
 }
 visited = [] 
 queue = []     
-deltf BFS(visited, graph, nodelt): 
-  visited.append(nodelt)
-  queue.append(nodelt)
+def BFS(visited, graph, node): 
+  visited.append(node)
+  queue.append(node)
   while queue:         
     a = queue.pop(0) 
     print (a, end = " ") 
